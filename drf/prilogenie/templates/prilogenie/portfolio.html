@@ -1,0 +1,100 @@
+{% extends 'prilogenie/base.html' %}
+{% load static %}
+
+{% block title %}Портфолио{% endblock %}
+
+{% block content %}
+    <div id="portfolio" class="tab-content active">
+        <h2>Мои работы</h2>
+        <p>Портфолио: Здесь вы можете увидеть мои лучшие работы.</p>
+        <div class="gallery">
+            <img src="{% static 'images/photo1.png' %}" alt="Фотография 1">
+            <img src="{% static 'images/photo2.jpg' %}" alt="Фотография 2">
+            <img src="{% static 'images/photo3.jpg' %}" alt="Фотография 3">
+        </div>
+        <div class="control-buttons">
+            <button id="openModalBtn" class="btn-primary">Открыть модальное окно</button>
+        </div>
+
+        <!-- Модальное окно -->
+        <div id="myModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h3>Дополнительная информация</h3>
+                <p>Содержимое модального окна</p>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+            position: relative;
+            animation: modalopen 0.4s;
+        }
+
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        @keyframes modalopen {
+            from {opacity: 0; transform: translateY(-50px)}
+            to {opacity: 1; transform: translateY(0)}
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var modal = document.getElementById("myModal");
+            var btn = document.getElementById("openModalBtn");
+            var span = document.getElementsByClassName("close")[0];
+
+            if (btn) btn.onclick = function() {
+                if (modal) modal.style.display = "block";
+            }
+
+            if (span) span.onclick = function() {
+                if (modal) modal.style.display = "none";
+            }
+
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+        });
+    </script>
+{% endblock %}
