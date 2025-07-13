@@ -9,43 +9,14 @@
       <p class="text">Творческий подход и профессионализм гарантированы.</p>
     </div>
     <div class="blok">
-    <h2 class="subtitle">Оставьте заявку и забронируйте фотосессию</h2>
-        <form class="form">
-            <input class="form-field" type="text" placeholder="Имя">
-            <input class="form-field" type="tel" placeholder="Телефон">
-            <input class="form-field" type="email" placeholder="Email">
-            <input class="form-field" type="text" id="calendar" name="date" placeholder="Дата">
-            <select class="form-field" name="service">
-                <option value="" disabled selected>Выберите услугу</option>
-                <option value="photosession">Фотосессия</option>
-                <option value="wedding">Свадебная съёмка</option>
-                <option value="portrait">Портрет</option>
-                <option value="event">Мероприятие</option>
-            </select>
-            <select class="form-field" name="time" id="time">
-              <option value="" disabled selected>Выберите время</option>
-              <option value="" disabled selected>Выберите время</option>
-              <option value="09:00">09:00</option>
-              <option value="10:00">10:00</option>
-              <option value="11:00">11:00</option>
-              <option value="12:00">12:00</option>
-              <option value="13:00">13:00</option>
-              <option value="14:00">14:00</option>
-              <option value="15:00">15:00</option>
-              <option value="16:00">16:00</option>
-              <option value="17:00">17:00</option>
-            </select>
-            <button class="form-button" type="submit">Записаться</button>
-        </form>
+      <h2 class="subtitle">Оставьте заявку и забронируйте фотосессию</h2>
+      <!-- Форма будет отображаться через React компонент -->
     </div>
-</section>
+  </section>
 </body>
 <style>
-
 .text-wrapper {
     margin-bottom: 10px;
-    /* display: flex; */
-    /* flex-direction: column; */
     align-items: center;
 }
 
@@ -74,43 +45,5 @@
     margin: 0;
     width: 518px;
 }
-
-    .form {
-    width: 416px;
-}
-
-.form-field {
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 30px;
-    padding: 11px 24px;
-    border-radius: 10px;
-    border: none;
-    width: 100%;
-    margin-bottom: 8px;
-}
-
-.form-button {
-    font-size: 18px;
-    font-weight: 400;
-    line-height: 30px;
-    color: #FFFFFF;
-    background-color: #3D38FF;
-    padding: 11px 54px;
-    border-radius: 10px;
-    font-family: "Playwrite BE VLG Guides", serif;
-    border: none;
-    cursor: pointer;
-    margin-bottom: 16px;
-    width: 100%;
-}
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script>
-  flatpickr("#calendar", {
-    enableTime: false,
-    dateFormat: "Y-m-d",
-  });
-</script>
 {% endblock %}
