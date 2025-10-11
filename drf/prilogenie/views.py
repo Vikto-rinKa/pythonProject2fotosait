@@ -1,38 +1,33 @@
-from django.views.generic import TemplateView
-from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.generics import ListAPIView, CreateAPIView, RetrieveAPIView
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
-from .models import Booking
+from .models import Booking, Photographer, Portfolio, Service, Contact
+from .serializers import (
+    PhotographerSerializer, PortfolioSerializer, ServiceSerializer, 
+    ContactSerializer, BookingSerializer, BookingCreateSerializer
+)
 
-class HomeView(TemplateView):
-    template_name = 'prilogenie/home.html'
+# Старые TemplateView удалены - теперь используется только React фронтенд
 
-class AboutView(TemplateView):
-    template_name = 'prilogenie/about.html'
+from django.http import JsonResponse
 
-class ContactView(TemplateView):
-    template_name = 'prilogenie/contact.html'
-
-class PortfolioView(TemplateView):
-    template_name = 'prilogenie/portfolio.html'
-
-class ServicesView(TemplateView):
-    template_name = 'prilogenie/services.html'
-
-class PhotographerList(TemplateView):
-    template_name = 'prilogenie/photographers.html'
-
-def home(request):
-    return render(request, 'prilogenie/base.html')
-
-def services(request):
-    return render(request, 'prilogenie/services.html')
+def index(request):
+    """Корневой URL - перенаправляет на React приложение"""
+    return JsonResponse({
+        'message': 'Django REST API для сайта фотографа',
+        'frontend': 'http://localhost:3000',
+        'api_docs': '/api/',
+        'admin': '/admin/'
+    })
 
 class BookedSlotsView(APIView):
+    pagination_class = None  # Отключаем пагинацию для этого view
+    
     def get(self, request):
         bookings = Booking.objects.all()
         data = [{"date": str(b.date), "time": b.time.strftime("%H:%M")} for b in bookings]
@@ -105,3 +100,72 @@ class RegisterView(APIView):
                 {'error': f'Ошибка создания пользователя: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# API Views для фронтенда
+class PhotographerListAPIView(ListAPIView):
+    queryset = Photographer.objects.all()
+    serializer_class = PhotographerSerializer
+    pagination_class = None  # Отключаем пагинацию
+
+
+class PhotographerDetailAPIView(RetrieveAPIView):
+    queryset = Photographer.objects.all()
+    serializer_class = PhotographerSerializer
+
+
+class PortfolioListAPIView(ListAPIView):
+    queryset = Portfolio.objects.all()
+    serializer_class = PortfolioSerializer
+    pagination_class = None  # Отключаем пагинацию
+
+
+class ServiceListAPIView(ListAPIView):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
+    pagination_class = None  # Отключаем пагинацию
+
+
+class ContactListAPIView(ListAPIView):
+    queryset = Contact.objects.all()
+    serializer_class = ContactSerializer
+    pagination_class = None  # Отключаем пагинацию
+
+
+class BookingListAPIView(ListAPIView):
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+    pagination_class = None  # Отключаем пагинацию
+
+
+class BookingCreateAPIView(CreateAPIView):
+    queryset = Booking.objects.all()
+    serializer_class = BookingCreateSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            booking = serializer.save()
+            return Response({
+                'message': 'Бронирование успешно создано',
+                'booking_id': booking.id
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def api_info(request):
+    """Информация о доступных API endpoints"""
+    return Response({
+        'message': 'API для сайта фотографа',
+        'endpoints': {
+            'photographers': '/api/photographers/',
+            'portfolio': '/api/portfolio/',
+            'services': '/api/services/',
+            'contacts': '/api/contacts/',
+            'bookings': '/api/bookings/',
+            'booked-slots': '/api/booked-slots/',
+            'login': '/api/login/',
+            'register': '/api/register/',
+        }
+    })

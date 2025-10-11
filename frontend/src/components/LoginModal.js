@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import apiClient from "../services/api";
 
 export default function LoginModal({ onClose }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,40 +26,22 @@ export default function LoginModal({ onClose }) {
         return;
       }
 
-      const endpoint = isLogin ? "login" : "register";
-      const body = isLogin 
-        ? { username: form.username, password: form.password }
-        : { username: form.username, password: form.password, email: form.email };
-
-      console.log(`Отправка запроса на ${endpoint}:`, body);
-
-      const res = await fetch(`http://localhost:8000/api/${endpoint}/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      
-      const data = await res.json();
-      console.log("Ответ сервера:", data);
-      
-      if (res.ok) {
-        if (isLogin && data.token) {
-          setMessage("Вход выполнен!");
-          localStorage.setItem("token", data.token);
-          setTimeout(onClose, 1000);
-        } else if (!isLogin) {
-          setMessage("Регистрация успешна! Теперь вы можете войти.");
-          setTimeout(() => {
-            setIsLogin(true);
-            setForm({ username: "", password: "", email: "", confirmPassword: "" });
-          }, 1500);
-        }
+      let response;
+      if (isLogin) {
+        response = await apiClient.login(form.username, form.password);
+        setMessage("Вход выполнен!");
+        setTimeout(onClose, 1000);
       } else {
-        setMessage(data.message || data.error || (isLogin ? "Ошибка авторизации" : "Ошибка регистрации"));
+        response = await apiClient.register(form.username, form.password, form.email);
+        setMessage("Регистрация успешна! Теперь вы можете войти.");
+        setTimeout(() => {
+          setIsLogin(true);
+          setForm({ username: "", password: "", email: "", confirmPassword: "" });
+        }, 1500);
       }
     } catch (error) {
       console.error("Ошибка:", error);
-      setMessage("Ошибка соединения с сервером");
+      setMessage(error.message || "Ошибка соединения с сервером");
     } finally {
       setIsLoading(false);
     }
