@@ -1,4 +1,5 @@
-const API_BASE_URL = 'http://localhost:8000/api';
+// Используем переменную окружения или дефолтное значение для разработки
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 class ApiClient {
   constructor() {
@@ -6,27 +7,74 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
+    const { skipAuth, headers: customHeaders, ...fetchOptions } = options;
     const url = `${this.baseURL}${endpoint}`;
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
+    const headers = {
+      'Content-Type': 'application/json',
+      ...customHeaders,
     };
 
-    // Добавляем токен авторизации если есть
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Token ${token}`;
+    if (!skipAuth) {
+      const adminToken = localStorage.getItem('adminToken');
+      const authToken = localStorage.getItem('authToken');
+      const token = adminToken || authToken;
+
+      if (token) {
+        headers.Authorization = `Token ${token}`;
+      }
     }
+
+    const config = {
+      headers,
+      ...fetchOptions,
+    };
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+      const contentType = response.headers.get('content-type');
+      const isJson = contentType && contentType.includes('application/json');
+      const data = isJson ? await response.json() : await response.text();
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        // Функция для извлечения сообщения об ошибке из разных форматов Django/DRF
+        const extractErrorMessage = (errorData) => {
+          if (typeof errorData === 'string') {
+            return errorData;
+          }
+          
+          if (typeof errorData !== 'object' || errorData === null) {
+            return `HTTP error! status: ${response.status}`;
+          }
+
+          // Стандартные форматы ошибок
+          if (errorData.error) {
+            return errorData.error;
+          }
+          
+          if (errorData.detail) {
+            return errorData.detail;
+          }
+
+          // Ошибки валидации полей (может быть объект с полями)
+          const fieldErrors = [];
+          for (const key in errorData) {
+            if (Array.isArray(errorData[key])) {
+              fieldErrors.push(`${key}: ${errorData[key].join(', ')}`);
+            } else if (typeof errorData[key] === 'string') {
+              fieldErrors.push(`${key}: ${errorData[key]}`);
+            }
+          }
+          
+          if (fieldErrors.length > 0) {
+            return fieldErrors.join('; ');
+          }
+
+          // Если ничего не найдено, возвращаем общее сообщение
+          return `HTTP error! status: ${response.status}`;
+        };
+
+        const message = isJson ? extractErrorMessage(data) : (typeof data === 'string' ? data : `HTTP error! status: ${response.status}`);
+        throw new Error(message);
       }
 
       return data;
@@ -42,18 +90,29 @@ class ApiClient {
   }
 
   // POST запрос
-  async post(endpoint, data) {
+  async post(endpoint, data, options = {}) {
     return this.request(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
+      ...options,
     });
   }
 
   // PUT запрос
-  async put(endpoint, data) {
+  async put(endpoint, data, options = {}) {
     return this.request(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
+      ...options,
+    });
+  }
+
+  // PATCH запрос
+  async patch(endpoint, data, options = {}) {
+    return this.request(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+      ...options,
     });
   }
 
@@ -62,14 +121,6 @@ class ApiClient {
     return this.request(endpoint, { method: 'DELETE' });
   }
 
-  // API методы для фотографов
-  async getPhotographers() {
-    return this.get('/photographers/');
-  }
-
-  async getPhotographer(id) {
-    return this.get(`/photographers/${id}/`);
-  }
 
   // API методы для портфолио
   async getPortfolio() {
@@ -95,31 +146,80 @@ class ApiClient {
     return this.post('/bookings/create/', bookingData);
   }
 
+  async deleteBooking(id) {
+    return this.delete(`/bookings/${id}/delete/`);
+  }
+
+  // Update methods
+  async updatePortfolio(id, data) {
+    return this.patch(`/portfolio/${id}/update/`, data);
+  }
+
+  async updateService(id, data) {
+    return this.patch(`/services/${id}/update/`, data);
+  }
+
+  async updateContact(id, data) {
+    return this.patch(`/contacts/${id}/update/`, data);
+  }
+
+  // Delete methods
+  async deletePortfolio(id) {
+    return this.delete(`/portfolio/${id}/delete/`);
+  }
+
+  async deleteService(id) {
+    return this.delete(`/services/${id}/delete/`);
+  }
+
+  async deleteContact(id) {
+    return this.delete(`/contacts/${id}/delete/`);
+  }
+
   async getBookedSlots() {
     return this.get('/booked-slots/');
   }
 
+  // Вспомогательная функция для установки данных пользователя в localStorage
+  _setAuthDataInLocalStorage(tokenKey, userKey, response) {
+    localStorage.setItem(tokenKey, response.token);
+    localStorage.setItem(userKey, JSON.stringify({
+      id: response.user_id,
+      username: response.username,
+      role: response.role
+    }));
+    window.dispatchEvent(new Event('authChanged'));
+  }
+
   // API методы для аутентификации
-  async login(username, password) {
-    const response = await this.post('/login/', { username, password });
+  async loginUser(username, password) {
+    const response = await this.post('/login/user/', { username, password }, { skipAuth: true });
     if (response.token) {
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify({
-        id: response.user_id,
-        username: response.username
-      }));
+      this._setAuthDataInLocalStorage('authToken', 'user', response);
     }
     return response;
   }
 
-  async register(username, password, email) {
-    const response = await this.post('/register/', { username, password, email });
+  async registerUser(username, password, email) {
+    const response = await this.post('/register/user/', { username, password, email }, { skipAuth: true });
     if (response.token) {
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify({
-        id: response.user_id,
-        username: response.username
-      }));
+      this._setAuthDataInLocalStorage('authToken', 'user', response);
+    }
+    return response;
+  }
+
+  async loginAdmin(username, password) {
+    const response = await this.post('/login/admin/', { username, password }, { skipAuth: true });
+    if (response.token) {
+      this._setAuthDataInLocalStorage('adminToken', 'adminUser', response);
+    }
+    return response;
+  }
+
+  async registerAdmin(username, password, email) {
+    const response = await this.post('/register/admin/', { username, password, email }, { skipAuth: true });
+    if (response.token) {
+      this._setAuthDataInLocalStorage('adminToken', 'adminUser', response);
     }
     return response;
   }
@@ -127,15 +227,32 @@ class ApiClient {
   logout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    // Отправляем событие для обновления UI
+    window.dispatchEvent(new Event('authChanged'));
   }
 
   isAuthenticated() {
-    return !!localStorage.getItem('authToken');
+    return !!localStorage.getItem('authToken') || !!localStorage.getItem('adminToken');
   }
 
   getCurrentUser() {
     const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
+    const adminUser = localStorage.getItem('adminUser');
+    
+    // Приоритет админа, если оба токена существуют
+    if (adminUser) {
+      return JSON.parse(adminUser);
+    }
+    if (user) {
+      return JSON.parse(user);
+    }
+    return null;
+  }
+
+  async getCurrentUserFromAPI() {
+    return this.get('/current-user/');
   }
 }
 

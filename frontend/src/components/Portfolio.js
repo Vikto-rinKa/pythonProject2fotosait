@@ -2,9 +2,11 @@ import React from "react";
 
 function Portfolio() {
   const portfolioImages = [
-    { id: 1, src: "/images/phfoto1.png", alt: "Фотосессия 1", title: "Семейная фотосессия" },
-    { id: 2, src: "/images/Screenshot_2.png", alt: "Фотосессия 2", title: "Портретная съемка" },
-    { id: 3, src: "/images/Logo_vsyo.png", alt: "Логотип", title: "Корпоративная съемка" },
+    { id: 1, src: "/images/2.jpg", alt: "Семейная фотосессия", title: "Семейная фотосессия" },
+    { id: 2, src: "/images/1.jpg", alt: "Портретная съемка", title: "Портретная съемка" },
+    { id: 3, src: "/images/3.jpg", alt: "Пейзажи", title: "Пейзажи" },
+    { id: 4, src: "/images/Logo_vsyo.png", alt: "Свадебное фото", title: "Свадебное фото" },
+    { id: 5, src: "/images/Logo_vsyo.png", alt: "Мероприятия", title: "Мероприятия" },
   ];
 
   return (

@@ -15,8 +15,7 @@ function BookingForm() {
     email: "",
     service: "",
     date: "",
-    time: "",
-    comment: ""
+    time: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState("");
@@ -25,6 +24,14 @@ function BookingForm() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Локальный список услуг на случай пустого ответа бэкенда
+        const defaultServices = [
+          { id: 1, name: "Фотосессии"},
+          { id: 2, name: "Свадебная съёмка"},
+          { id: 3, name: "Портретная съёмка"},
+          { id: 4, name: "Съёмка мероприятий"}
+        ];
+
         const [bookedSlotsData, servicesData] = await Promise.all([
           apiClient.getBookedSlots(),
           apiClient.getServices()
@@ -40,22 +47,30 @@ function BookingForm() {
           : (bookedSlotsData.results || []);
         
         setBookedSlots(processedBookedSlots);
-        setServices(processedServices);
+        setServices((processedServices && processedServices.length > 0) ? processedServices : defaultServices);
       } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         // Устанавливаем пустые массивы в случае ошибки
         setBookedSlots([]);
-        setServices([]);
+        setServices([
+          { id: 1, name: "Фотосессии"},
+          { id: 2, name: "Свадебная съёмка"},
+          { id: 3, name: "Портретная съёмка"},
+          { id: 4, name: "Съёмка мероприятий"}
+        ]);
       }
     };
     fetchData();
   }, []);
 
   const bookedDates = bookedSlots && bookedSlots.length > 0 
-    ? bookedSlots.map(slot => slot.date.split("T")[0])
+    ? bookedSlots
+        .filter(slot => slot && slot.date)
+        .map(slot => slot.date.split("T")[0])
     : [];
   const bookedTimesForDate = bookedSlots && bookedSlots.length > 0
     ? bookedSlots
+        .filter(slot => slot && slot.date && slot.time)
         .filter(slot => slot.date.split("T")[0] === (selectedDate ? selectedDate.toISOString().split("T")[0] : ""))
         .map(slot => slot.time)
     : [];
@@ -92,6 +107,14 @@ function BookingForm() {
 
       const response = await apiClient.createBooking(bookingData);
       setSubmitMessage("Бронирование успешно создано!");
+      // Сохраняем имя пользователя для кабинета
+      if (bookingData.name) {
+        try {
+          localStorage.setItem("userName", bookingData.name);
+        } catch (e) {
+          // игнорируем, если localStorage недоступен
+        }
+      }
       
       // Очищаем форму
       setFormData({
@@ -100,8 +123,7 @@ function BookingForm() {
         email: "",
         service: "",
         date: "",
-        time: "",
-        comment: ""
+        time: ""
       });
       setSelectedDate(null);
       setSelectedTime("");
@@ -167,7 +189,7 @@ function BookingForm() {
                 </option>
               ))
             ) : (
-              <option value="" disabled>Загрузка услуг...</option>
+              <option value="" disabled>Фотосессия</option>
             )}
           </select>
           <DatePicker
@@ -196,14 +218,6 @@ function BookingForm() {
               <option key={time} value={time}>{time}</option>
             ))}
           </select>
-          <textarea
-            className="form-field"
-            placeholder="Комментарий (необязательно)"
-            name="comment"
-            value={formData.comment}
-            onChange={handleInputChange}
-            rows="3"
-          />
           <button 
             className="form-button" 
             type="submit"
