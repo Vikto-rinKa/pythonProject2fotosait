@@ -1,10 +1,21 @@
-__pycache__/
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 *.sqlite3
 *.db
 *.log
+.Python
+venv/
+.venv/
+env/
+.env
+.env.local
 
-# Django media/static (если нужно)
+# Django
 media/
 staticfiles/
+*.pot
+local_settings.py
+
