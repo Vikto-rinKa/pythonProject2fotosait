@@ -1,137 +1,181 @@
 import React, { useState } from "react";
 import apiClient from "../services/api";
+import "./Login.css";
 
-export default function LoginModal({ onClose }) {
+function LoginModal({ onClose, onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [form, setForm] = useState({ 
-    username: "", 
-    password: "", 
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
     email: "",
     confirmPassword: ""
   });
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setMessage("");
-    
-    try {
-      if (!isLogin && form.password !== form.confirmPassword) {
-        setMessage("Пароли не совпадают");
-        setIsLoading(false);
-        return;
-      }
 
-      let response;
+    try {
       if (isLogin) {
-        response = await apiClient.login(form.username, form.password);
-        setMessage("Вход выполнен!");
-        setTimeout(onClose, 1000);
+        // Логин
+        const response = await apiClient.loginUser(form.username, form.password);
+        if (response.token) {
+          setMessage("Вход выполнен!");
+          setTimeout(() => {
+            if (onLoginSuccess) {
+              onLoginSuccess();
+            }
+            onClose();
+          }, 500);
+        }
       } else {
-        response = await apiClient.register(form.username, form.password, form.email);
-        setMessage("Регистрация успешна! Теперь вы можете войти.");
-        setTimeout(() => {
-          setIsLogin(true);
-          setForm({ username: "", password: "", email: "", confirmPassword: "" });
-        }, 1500);
+        // Регистрация
+        if (form.password.length < 8) {
+          setMessage("Пароль должен содержать минимум 8 символов");
+          setIsLoading(false);
+          return;
+        }
+
+        if (form.password !== form.confirmPassword) {
+          setMessage("Пароли не совпадают");
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await apiClient.registerUser(
+          form.username,
+          form.password,
+          form.email
+        );
+        if (response.token) {
+          setMessage("Регистрация успешна! Выполняется вход...");
+          setTimeout(() => {
+            if (onLoginSuccess) {
+              onLoginSuccess();
+            }
+            onClose();
+          }, 1000);
+        }
       }
     } catch (error) {
       console.error("Ошибка:", error);
-      setMessage(error.message || "Ошибка соединения с сервером");
+      setMessage(error.message || (isLogin ? "Неверные учетные данные" : "Ошибка регистрации"));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const switchMode = () => {
-    setIsLogin(!isLogin);
-    setMessage("");
-    setForm({ username: "", password: "", email: "", confirmPassword: "" });
-  };
-
   return (
-    <div className="modal" onClick={(e) => {
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
-    }}>
-      <div className="modal-content">
-        <span className="close" onClick={onClose}>&times;</span>
-        <h2>{isLogin ? "Вход" : "Регистрация"}</h2>
-        
-        <form onSubmit={handleSubmit}>
-          <input 
-            name="username" 
-            placeholder="Имя пользователя" 
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{isLogin ? "ВХОД" : "РЕГИСТРАЦИЯ"}</h2>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <input
+            name="username"
+            placeholder="Имя пользователя"
             value={form.username}
-            onChange={handleChange} 
-            required 
+            onChange={handleChange}
+            required
             disabled={isLoading}
+            className="auth-input"
           />
-          
+
           {!isLogin && (
-            <input 
-              name="email" 
-              type="email" 
-              placeholder="Email" 
+            <input
+              name="email"
+              type="email"
+              placeholder="Email"
               value={form.email}
-              onChange={handleChange} 
-              required 
+              onChange={handleChange}
+              required
               disabled={isLoading}
+              className="auth-input"
             />
           )}
-          
-          <input 
-            name="password" 
-            type="password" 
-            placeholder="Пароль" 
+
+          <input
+            name="password"
+            type="password"
+            placeholder="Пароль"
             value={form.password}
-            onChange={handleChange} 
-            required 
+            onChange={handleChange}
+            required
             disabled={isLoading}
+            className="auth-input"
           />
-          
+
           {!isLogin && (
-            <input 
-              name="confirmPassword" 
-              type="password" 
-              placeholder="Подтвердите пароль" 
+            <input
+              name="confirmPassword"
+              type="password"
+              placeholder="Подтвердите пароль"
               value={form.confirmPassword}
-              onChange={handleChange} 
-              required 
+              onChange={handleChange}
+              required
               disabled={isLoading}
+              className="auth-input"
             />
           )}
-          
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? "Загрузка..." : (isLogin ? "Войти" : "Зарегистрироваться")}
+
+          <button type="submit" disabled={isLoading} className="auth-button">
+            {isLoading
+              ? isLogin
+                ? "Вход..."
+                : "Регистрация..."
+              : isLogin
+              ? "Войти"
+              : "Зарегистрироваться"}
           </button>
         </form>
-        
+
         <div className="auth-switch">
           <p>
-            {isLogin ? "Нет аккаунта?" : "Уже есть аккаунт?"}
-            <button 
-              type="button" 
-              className="switch-btn" 
-              onClick={switchMode}
-              disabled={isLoading}
+            {isLogin ? "Нет аккаунта? " : "Уже есть аккаунт? "}
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setMessage("");
+                setForm({
+                  username: "",
+                  password: "",
+                  email: "",
+                  confirmPassword: ""
+                });
+              }}
+              className="auth-link"
+              style={{ background: "none", border: "none", cursor: "pointer" }}
             >
               {isLogin ? "Зарегистрироваться" : "Войти"}
             </button>
           </p>
         </div>
-        
+
         {message && (
-          <div className={`message ${message.includes('успешн') ? 'success' : 'error'}`}>
+          <div
+            className={`auth-message ${
+              message.includes("успешн") ? "success" : "error"
+            }`}
+          >
             {message}
           </div>
         )}
       </div>
     </div>
   );
-} 
+}
+
+export default LoginModal;
+
+

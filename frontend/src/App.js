@@ -6,14 +6,18 @@ import About from "./components/About";
 import Portfolio from "./components/Portfolio";
 import Services from "./components/Services";
 import Contact from "./components/Contact";
+import UserCabinet from "./components/UserCabinet";
+import AdminCabinet from "./components/AdminCabinet";
 import LoginModal from "./components/LoginModal";
 import LoadingIndicator from "./components/LoadingIndicator";
 import Breadcrumbs from "./components/Breadcrumbs";
+import apiClient from "./services/api";
 import "react-datepicker/dist/react-datepicker.css";
 import "./styles.css";
 
 // Компонент для плавных переходов между страницами
 function PageTransition({ children }) {
+  const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,7 +32,7 @@ function PageTransition({ children }) {
       clearTimeout(loadingTimer);
       clearTimeout(visibleTimer);
     };
-  }, [children]);
+  }, [location.pathname]); // Отслеживаем изменение пути вместо children
 
   if (isLoading) {
     return <LoadingIndicator />;
@@ -41,7 +45,7 @@ function PageTransition({ children }) {
   );
 }
 
-function Navigation() {
+function Navigation({ isAuthenticated, userRole, onAuthChange }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
@@ -54,6 +58,18 @@ function Navigation() {
     // Плавный переход к началу страницы при навигации
     navigate(path);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLogin(false);
+    // Проверяем состояние аутентификации после входа
+    if (onAuthChange) {
+      onAuthChange();
+    }
+  };
+
+  const getCabinetPath = () => {
+    return userRole === 'admin' ? '/admin' : '/cabinet';
   };
 
   return (
@@ -115,22 +131,85 @@ function Navigation() {
                 </li>
               </ul>
             </div>
-            <button className="login-btn" onClick={() => setShowLogin(true)}>
-              Войти / Регистрация
-            </button>
+            <div className="header-buttons">
+              {!isAuthenticated ? (
+                <button className="login-btn" onClick={() => setShowLogin(true)}>
+                  Войти / Регистрация
+                </button>
+              ) : (
+                <>
+                  <button className="login-btn" onClick={() => handleNavigation(getCabinetPath())}>
+                    {userRole === 'admin' ? 'Админ панель' : 'Кабинет'}
+                  </button>
+                  <button 
+                    className="login-btn" 
+                    onClick={() => {
+                      apiClient.logout();
+                      if (onAuthChange) {
+                        onAuthChange();
+                      }
+                      navigate('/');
+                    }}
+                  >
+                    Выйти
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} onLoginSuccess={handleLoginSuccess} />}
     </header>
   );
 }
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+
+  // Проверяем состояние аутентификации при загрузке и при изменениях
+  const checkAuth = () => {
+    const authenticated = apiClient.isAuthenticated();
+    setIsAuthenticated(authenticated);
+    
+    if (authenticated) {
+      const currentUser = apiClient.getCurrentUser();
+      setUserRole(currentUser ? currentUser.role : null);
+    } else {
+      setUserRole(null);
+    }
+  };
+
+  useEffect(() => {
+    checkAuth();
+    
+    // Слушаем изменения в localStorage (для синхронизации между вкладками)
+    const handleStorageChange = (e) => {
+      if (e.key === 'authToken' || e.key === 'adminToken') {
+        checkAuth();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Слушаем кастомное событие для обновления состояния в той же вкладке
+    const handleAuthChange = () => {
+      checkAuth();
+    };
+    
+    window.addEventListener('authChanged', handleAuthChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChanged', handleAuthChange);
+    };
+  }, []);
+
   return (
     <Router>
       <div className="App">
-        <Navigation />
+        <Navigation isAuthenticated={isAuthenticated} userRole={userRole} onAuthChange={checkAuth} />
         <Routes>
           <Route path="/" element={
             <PageTransition>
@@ -173,6 +252,28 @@ function App() {
               <Breadcrumbs />
               <main>
                 <Contact />
+              </main>
+            </PageTransition>
+          } />
+          <Route path="/cabinet" element={
+            <PageTransition>
+              <Breadcrumbs />
+              <main>
+                <UserCabinet onLogout={() => {
+                  apiClient.logout();
+                  checkAuth();
+                }} />
+              </main>
+            </PageTransition>
+          } />
+          <Route path="/admin" element={
+            <PageTransition>
+              <Breadcrumbs />
+              <main>
+                <AdminCabinet onLogout={() => {
+                  apiClient.logout();
+                  checkAuth();
+                }} />
               </main>
             </PageTransition>
           } />
