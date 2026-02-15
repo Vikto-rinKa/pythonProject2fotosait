@@ -127,14 +127,41 @@ class ApiClient {
     return this.get('/portfolio/');
   }
 
+  async getPhotographers() {
+    return this.get('/photographers/');
+  }
+
+  async createPhotographer(data) {
+    return this.post('/photographers/create/', data);
+  }
+
+  async createPortfolio(formData) {
+    const url = `${this.baseURL}/portfolio/create/`;
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('authToken');
+    const headers = {};
+    if (token) headers.Authorization = `Token ${token}`;
+    const res = await fetch(url, { method: 'POST', headers, body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.detail || data.image?.[0] || `HTTP ${res.status}`);
+    return data;
+  }
+
   // API методы для услуг
   async getServices() {
     return this.get('/services/');
   }
 
+  async createService(data) {
+    return this.post('/services/create/', data);
+  }
+
   // API методы для контактов
   async getContacts() {
     return this.get('/contacts/');
+  }
+
+  async createContact(data) {
+    return this.post('/contacts/create/', data);
   }
 
   // API методы для бронирования
@@ -178,6 +205,14 @@ class ApiClient {
 
   async getBookedSlots() {
     return this.get('/booked-slots/');
+  }
+
+  /** URL для медиа-файлов с бэкенда (изображения портфолио и т.д.) */
+  getMediaUrl(path) {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const base = this.baseURL.replace(/\/api\/?$/, '');
+    return `${base}${path}`;
   }
 
   // Вспомогательная функция для установки данных пользователя в localStorage

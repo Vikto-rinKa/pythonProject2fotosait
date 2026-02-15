@@ -6,6 +6,10 @@ from django.contrib.auth import authenticate, get_user_model
 User = get_user_model()
 
 class PortfolioSerializer(serializers.ModelSerializer):
+    photographer = serializers.PrimaryKeyRelatedField(
+        queryset=Photographer.objects.all(), required=False, allow_null=True
+    )
+
     class Meta:
         model = Portfolio
         fields = ['id', 'title', 'description', 'image', 'photographer']

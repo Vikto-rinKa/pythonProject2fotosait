@@ -176,10 +176,31 @@ class AdminRegisterView(BaseRoleRegisterView):
 
 
 # API Views для фронтенда
+class PhotographerListAPIView(ListAPIView):
+    """Список фотографов — публичные данные для сайта и выбора в админке."""
+    queryset = Photographer.objects.all()
+    serializer_class = PhotographerSerializer
+    pagination_class = None
+    permission_classes = [AllowAny]
+
+
+class PhotographerCreateAPIView(CreateAPIView):
+    """Создание фотографа (только для админа)."""
+    queryset = Photographer.objects.all()
+    serializer_class = PhotographerSerializer
+    permission_classes = [IsAdminUser]
+
+
 class PortfolioListAPIView(ListAPIView):
     queryset = Portfolio.objects.all()
     serializer_class = PortfolioSerializer
     pagination_class = None  # Отключаем пагинацию
+
+
+class PortfolioCreateAPIView(CreateAPIView):
+    queryset = Portfolio.objects.all()
+    serializer_class = PortfolioSerializer
+    permission_classes = [IsAdminUser]
 
 
 class ServiceListAPIView(ListAPIView):
@@ -188,10 +209,22 @@ class ServiceListAPIView(ListAPIView):
     pagination_class = None  # Отключаем пагинацию
 
 
+class ServiceCreateAPIView(CreateAPIView):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
+    permission_classes = [IsAdminUser]
+
+
 class ContactListAPIView(ListAPIView):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     pagination_class = None  # Отключаем пагинацию
+
+
+class ContactCreateAPIView(CreateAPIView):
+    queryset = Contact.objects.all()
+    serializer_class = ContactSerializer
+    permission_classes = [IsAdminUser]
 
 
 class BookingListAPIView(ListAPIView):
@@ -246,10 +279,21 @@ class BookingDeleteAPIView(APIView):
                     'error': 'Требуется аутентификация'
                 }, status=status.HTTP_401_UNAUTHORIZED)
             
-            if hasattr(user, 'role') and user.role != 'admin' and booking.user != user:
-                return Response({
-                    'error': 'Недостаточно прав для удаления этого бронирования'
-                }, status=status.HTTP_403_FORBIDDEN)
+            # Админ может удалять любое бронирование; остальные — только своё (по user или по email для гостевых).
+            # Учитываем is_staff/is_superuser и role, чтобы не пропустить проверку при отсутствии role.
+            is_admin = (
+                getattr(user, 'role', None) == 'admin' or user.is_staff or user.is_superuser
+            )
+            if not is_admin:
+                is_own = booking.user == user or (
+                    booking.user is None
+                    and getattr(user, 'email', None)
+                    and booking.email == user.email
+                )
+                if not is_own:
+                    return Response({
+                        'error': 'Недостаточно прав для удаления этого бронирования'
+                    }, status=status.HTTP_403_FORBIDDEN)
             
             booking.delete()
             return Response({

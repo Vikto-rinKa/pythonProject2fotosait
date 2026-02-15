@@ -15,6 +15,9 @@ function AdminCabinet({ onLogout }) {
   const [contacts, setContacts] = useState([]);
   const [editingItem, setEditingItem] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [addingType, setAddingType] = useState(null);
+  const [addForm, setAddForm] = useState({});
+  const [photographers, setPhotographers] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,8 +90,63 @@ function AdminCabinet({ onLogout }) {
       setServices(Array.isArray(servicesData) ? servicesData : (servicesData.results || []));
       setPortfolio(Array.isArray(portfolioData) ? portfolioData : (portfolioData.results || []));
       setContacts(Array.isArray(contactsData) ? contactsData : (contactsData.results || []));
+      const photographersData = await apiClient.getPhotographers().catch(() => []);
+      setPhotographers(Array.isArray(photographersData) ? photographersData : (photographersData.results || []));
     } catch (error) {
       console.error("Ошибка загрузки данных:", error);
+    }
+  };
+
+  const cancelAdd = () => {
+    setAddingType(null);
+    setAddForm({});
+  };
+
+  const saveNewService = async () => {
+    try {
+      const created = await apiClient.createService({
+        name: addForm.name || "",
+        description: addForm.description || "",
+        price: addForm.price || 0,
+      });
+      setServices([...services, created]);
+      cancelAdd();
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Ошибка создания услуги");
+    }
+  };
+
+  const saveNewContact = async () => {
+    try {
+      const created = await apiClient.createContact({
+        name: addForm.name || "",
+        email: addForm.email || "",
+        phone: addForm.phone || "",
+        address: addForm.address || "",
+        social_networks: addForm.social_networks || "",
+      });
+      setContacts([...contacts, created]);
+      cancelAdd();
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Ошибка создания контакта");
+    }
+  };
+
+  const saveNewPortfolio = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("title", addForm.title || "");
+      formData.append("description", addForm.description || "");
+      if (addForm.photographer) formData.append("photographer", addForm.photographer);
+      if (addForm.image) formData.append("image", addForm.image);
+      const created = await apiClient.createPortfolio(formData);
+      setPortfolio([...portfolio, created]);
+      cancelAdd();
+    } catch (e) {
+      console.error(e);
+      alert(e.message || "Ошибка создания работы в портфолио");
     }
   };
 
@@ -266,6 +324,39 @@ function AdminCabinet({ onLogout }) {
         {activeTab === "services" && (
           <div className="admin-section">
             <h2>Услуги</h2>
+            {addingType === "service" ? (
+              <div className="edit-form add-form">
+                <input
+                  type="text"
+                  value={addForm.name || ""}
+                  onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                  placeholder="Название услуги"
+                  className="form-field"
+                />
+                <textarea
+                  value={addForm.description || ""}
+                  onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                  placeholder="Описание"
+                  className="form-field"
+                  rows="3"
+                />
+                <input
+                  type="number"
+                  value={addForm.price ?? ""}
+                  onChange={(e) => setAddForm({ ...addForm, price: e.target.value })}
+                  placeholder="Цена (число)"
+                  className="form-field"
+                />
+                <div className="edit-buttons">
+                  <button type="button" onClick={saveNewService} className="save-btn">Сохранить</button>
+                  <button type="button" onClick={cancelAdd} className="cancel-btn">Отмена</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="form-button" style={{ marginBottom: "1rem" }} onClick={() => setAddingType("service")}>
+                + Добавить услугу
+              </button>
+            )}
             <div className="services-grid">
               {services.map((service) => (
                 <div key={service.id} className="service-card">
@@ -319,6 +410,43 @@ function AdminCabinet({ onLogout }) {
         {activeTab === "portfolio" && (
           <div className="admin-section">
             <h2>Портфолио</h2>
+            <p className="message" style={{ marginBottom: "1rem", fontSize: "0.95rem" }}>
+              Вы — администратор и фотограф. Добавляйте работы без отдельного выбора фотографа.
+            </p>
+            {addingType === "portfolio" ? (
+              <div className="edit-form add-form">
+                <input
+                  type="text"
+                  value={addForm.title || ""}
+                  onChange={(e) => setAddForm({ ...addForm, title: e.target.value })}
+                  placeholder="Название работы"
+                  className="form-field"
+                />
+                <textarea
+                  value={addForm.description || ""}
+                  onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                  placeholder="Описание"
+                  className="form-field"
+                  rows="3"
+                />
+                <label className="form-field">
+                  Изображение (обязательно):{" "}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setAddForm({ ...addForm, image: e.target.files[0] })}
+                  />
+                </label>
+                <div className="edit-buttons">
+                  <button type="button" onClick={saveNewPortfolio} className="save-btn">Сохранить</button>
+                  <button type="button" onClick={cancelAdd} className="cancel-btn">Отмена</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="form-button" style={{ marginBottom: "1rem" }} onClick={() => setAddingType("portfolio")}>
+                + Добавить работу в портфолио
+              </button>
+            )}
             <div className="portfolio-grid">
               {portfolio.map((item) => (
                 <div key={item.id} className="portfolio-card">
@@ -355,7 +483,7 @@ function AdminCabinet({ onLogout }) {
                       <p>{item.description}</p>
                       {item.image && (
                         <img 
-                          src={item.image} 
+                          src={item.image.startsWith("http") ? item.image : apiClient.getMediaUrl(item.image)} 
                           alt={item.title}
                           className="portfolio-image"
                         />
@@ -372,6 +500,53 @@ function AdminCabinet({ onLogout }) {
         {activeTab === "contacts" && (
           <div className="admin-section">
             <h2>Контакты</h2>
+            {addingType === "contact" ? (
+              <div className="edit-form add-form">
+                <input
+                  type="text"
+                  value={addForm.name || ""}
+                  onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                  placeholder="Имя / название"
+                  className="form-field"
+                />
+                <input
+                  type="email"
+                  value={addForm.email || ""}
+                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                  placeholder="Email"
+                  className="form-field"
+                />
+                <input
+                  type="text"
+                  value={addForm.phone || ""}
+                  onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                  placeholder="Телефон"
+                  className="form-field"
+                />
+                <input
+                  type="text"
+                  value={addForm.address || ""}
+                  onChange={(e) => setAddForm({ ...addForm, address: e.target.value })}
+                  placeholder="Адрес"
+                  className="form-field"
+                />
+                <textarea
+                  value={addForm.social_networks || ""}
+                  onChange={(e) => setAddForm({ ...addForm, social_networks: e.target.value })}
+                  placeholder="Социальные сети"
+                  className="form-field"
+                  rows="2"
+                />
+                <div className="edit-buttons">
+                  <button type="button" onClick={saveNewContact} className="save-btn">Сохранить</button>
+                  <button type="button" onClick={cancelAdd} className="cancel-btn">Отмена</button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="form-button" style={{ marginBottom: "1rem" }} onClick={() => setAddingType("contact")}>
+                + Добавить контакт
+              </button>
+            )}
             <div className="contacts-grid">
               {contacts.map((contact) => (
                 <div key={contact.id} className="contact-card">

@@ -134,7 +134,10 @@ function BookingForm() {
       setBookedSlots(updatedBookedSlots);
 
     } catch (error) {
-      setSubmitMessage(`Ошибка: ${error.message}`);
+      const msg = error.message === "Failed to fetch"
+        ? "Не удалось связаться с сервером. Запустите бэкенд: из папки drf выполните python manage.py runserver 0.0.0.0:8000"
+        : `Ошибка: ${error.message}`;
+      setSubmitMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
